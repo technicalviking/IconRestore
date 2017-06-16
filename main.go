@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -129,6 +130,7 @@ func restartExplorer() {
 }
 
 func main() {
+
 	args := os.Args[1:]
 	iconPositions := getKey()
 
@@ -137,7 +139,10 @@ func main() {
 		export(iconPositions)
 	} else {
 		//make sure file exists before we do anything
-		if _, err := os.Stat("regKeyData"); os.IsNotExist(err) {
+		exepath, _ := os.Executable()
+		dir := filepath.Dir(exepath)
+		keyDataPath := dir + string(os.PathSeparator) + "regKeyData"
+		if _, err := os.Stat(keyDataPath); os.IsNotExist(err) {
 			panic("Prior Saved Reg Key Data doesn't exist!  Please Run 'IconRestore save' to create it first!")
 		}
 
