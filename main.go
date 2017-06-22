@@ -148,6 +148,8 @@ func main() {
 
 		clear(iconPositions)
 		importKey(iconPositions)
+		iconPositions.Close()
+
 		restartExplorer()
 	}
 
