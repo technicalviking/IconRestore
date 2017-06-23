@@ -17,15 +17,19 @@ import (
 type RegValueInfo struct {
 	Key     string
 	Buf     []byte
-	ValType int
+	ValType uint32
 }
 
-func getKey() registry.Key {
-	iconPositions, err := registry.OpenKey(registry.CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\Shell\\Bags\\1\\Desktop", registry.QUERY_VALUE)
-
+func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func getKey() registry.Key {
+	iconPositions, err := registry.OpenKey(registry.CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\Shell\\Bags\\1\\Desktop", registry.ALL_ACCESS)
+
+	checkErr(err)
 
 	return iconPositions
 }
@@ -34,7 +38,8 @@ func export(iconPositions registry.Key) {
 
 	KeyValPairs := []RegValueInfo{}
 
-	valueNames, _ := iconPositions.ReadValueNames(-1)
+	valueNames, readErr := iconPositions.ReadValueNames(-1)
+	checkErr(readErr)
 
 	for i := 0; i < len(valueNames); i++ {
 		curKey := valueNames[i]
@@ -54,7 +59,6 @@ func export(iconPositions registry.Key) {
 		case registry.DWORD:
 			fallthrough
 		case registry.QWORD:
-
 			intVal, _, _ := iconPositions.GetIntegerValue(curKey)
 			binary.Write(tempBuffer, binary.LittleEndian, intVal)
 		case registry.SZ:
@@ -69,28 +73,22 @@ func export(iconPositions registry.Key) {
 		KeyValPairs = append(KeyValPairs, RegValueInfo{
 			curKey,
 			tempBuffer.Bytes(),
-			int(valType),
+			valType,
 		})
 	}
 
 	fileContents, jsonErr := json.Marshal(KeyValPairs)
-
-	if jsonErr != nil {
-		panic(jsonErr)
-	}
+	checkErr(jsonErr)
 
 	fileErr := ioutil.WriteFile("regKeyData", fileContents, 0777)
-
-	if fileErr != nil {
-		panic(fileErr)
-	}
+	checkErr(fileErr)
 }
 
 func clear(iconPositions registry.Key) {
 	valueNames, _ := iconPositions.ReadValueNames(-1)
 
 	for i := 0; i < len(valueNames); i++ {
-		iconPositions.DeleteValue(valueNames[i])
+		checkErr(iconPositions.DeleteValue(valueNames[i]))
 	}
 }
 
@@ -103,20 +101,17 @@ func importKey(iconPositions registry.Key) {
 
 	for i := 0; i < len(KeyValPairs); i++ {
 		curData := KeyValPairs[i]
-		reader := bytes.NewReader(curData.Buf)
 		switch curData.ValType {
 		case registry.DWORD:
-			var value uint32
-			binary.Read(reader, binary.LittleEndian, &value)
-			iconPositions.SetDWordValue(curData.Key, value)
+			value := binary.LittleEndian.Uint32(curData.Buf)
+			checkErr(iconPositions.SetDWordValue(curData.Key, value))
 		case registry.BINARY:
-			var binData []byte
-			binary.Read(reader, binary.LittleEndian, &binData)
-			iconPositions.SetBinaryValue(curData.Key, binData)
+			checkErr(iconPositions.SetBinaryValue(curData.Key, curData.Buf))
 		case registry.SZ:
-			var strData string
-			binary.Read(reader, binary.LittleEndian, &strData)
-			iconPositions.SetStringValue(curData.Key, strData)
+			binData := bytes.NewBuffer(curData.Buf)
+			strLength := binData.Len()
+			strData := string(binData.Bytes()[:strLength])
+			checkErr(iconPositions.SetStringValue(curData.Key, strData))
 		}
 	}
 }

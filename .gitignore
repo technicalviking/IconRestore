@@ -1,2 +1,4 @@
 regKeyData
 *.reg
+*.vscode
+debug
