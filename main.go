@@ -34,6 +34,14 @@ func getKey() registry.Key {
 	return iconPositions
 }
 
+func getKeyDataPath() (keyDataPath string) {
+	//make sure file exists before we do anything
+	exepath, _ := os.Executable()
+	dir := filepath.Dir(exepath)
+	keyDataPath = dir + string(os.PathSeparator) + "regKeyData"
+	return
+}
+
 func export(iconPositions registry.Key) {
 
 	KeyValPairs := []RegValueInfo{}
@@ -80,7 +88,7 @@ func export(iconPositions registry.Key) {
 	fileContents, jsonErr := json.Marshal(KeyValPairs)
 	checkErr(jsonErr)
 
-	fileErr := ioutil.WriteFile("regKeyData", fileContents, 0777)
+	fileErr := ioutil.WriteFile(getKeyDataPath(), fileContents, 0777)
 	checkErr(fileErr)
 }
 
@@ -95,7 +103,7 @@ func clear(iconPositions registry.Key) {
 func importKey(iconPositions registry.Key) {
 	var KeyValPairs []RegValueInfo
 
-	fileData, _ := ioutil.ReadFile("regKeyData")
+	fileData, _ := ioutil.ReadFile(getKeyDataPath())
 
 	json.Unmarshal(fileData, &KeyValPairs)
 
@@ -133,10 +141,7 @@ func main() {
 		fmt.Printf("Exporting Key to file 'regKeyData'")
 		export(iconPositions)
 	} else {
-		//make sure file exists before we do anything
-		exepath, _ := os.Executable()
-		dir := filepath.Dir(exepath)
-		keyDataPath := dir + string(os.PathSeparator) + "regKeyData"
+		keyDataPath := getKeyDataPath()
 		if _, err := os.Stat(keyDataPath); os.IsNotExist(err) {
 			panic("Prior Saved Reg Key Data doesn't exist!  Please Run 'IconRestore save' to create it first!")
 		}
